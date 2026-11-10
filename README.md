@@ -8,7 +8,7 @@ Shared [oxlint](https://oxc.rs/docs/guide/usage/linter) and [oxfmt](https://oxc.
 pnpm add -D -E @wonderboymusic/oxc-config oxlint oxfmt
 ```
 
-Node.js 22.18 or later is required, because oxlint loads `oxlint.config.ts` itself. The config is tested with oxlint 1.93.0 and oxfmt 0.76.0. oxlint reports a rule it does not know as a configuration error, so a release that renames or removes a rule fails loudly instead of silently dropping it.
+Node.js 22.18 or later is required, because oxlint loads `oxlint.config.ts` itself. The config is tested with oxlint 1.91.0 and oxfmt 0.76.0. oxlint reports a rule it does not know as a configuration error, so a release that renames or removes a rule fails loudly instead of silently dropping it.
 
 ## Linting
 
