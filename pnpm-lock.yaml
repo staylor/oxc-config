@@ -7,11 +7,10 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       eslint-plugin-testing-library:
         specifier: 7.16.2
         version: 7.16.2(eslint@10.14.0)(typescript@6.0.3)
-    devDependencies:
       oxfmt:
         specifier: 0.76.0
         version: 0.76.0

@@ -41,14 +41,15 @@
     "lint:fix": "oxlint --fix && oxfmt",
     "test": "node test/smoke.mjs"
   },
-  "dependencies": {
-    "eslint-plugin-testing-library": "7.16.2"
-  },
   "peerDependencies": {
+    "eslint-plugin-testing-library": ">=7.16.2 <8",
     "oxfmt": ">=0.76.0 <1",
     "oxlint": ">=1.91.0 <2"
   },
   "peerDependenciesMeta": {
+    "eslint-plugin-testing-library": {
+      "optional": true
+    },
     "oxfmt": {
       "optional": true
     },
@@ -57,6 +58,7 @@
     }
   },
   "devDependencies": {
+    "eslint-plugin-testing-library": "7.16.2",
     "oxfmt": "0.76.0",
     "oxlint": "1.91.0"
   }
