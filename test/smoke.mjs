@@ -14,7 +14,7 @@ import path from 'node:path';
 import { createConfig as createOxfmtConfig } from '../oxfmt/index.js';
 import { createConfig } from '../oxlint/index.js';
 
-const EXPECTED_CODES = [
+const BASE_CODES = [
   'eslint(eqeqeq)',
   'eslint(no-unused-vars)',
   'import(no-duplicates)',
@@ -22,15 +22,16 @@ const EXPECTED_CODES = [
   'promise(catch-or-return)',
   'react(jsx-key)',
   'typescript(no-namespace)',
-  'testing-library(no-debugging-utils)',
   'vitest(consistent-test-it)',
   'vitest(no-focused-tests)',
 ];
+const TESTING_LIBRARY_CODES = ['testing-library(no-debugging-utils)'];
 
 const root = path.resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const work = mkdtempSync(path.join(tmpdir(), 'oxc-config-smoke-'));
 const consumer = path.join(work, 'consumer');
+const minimal = path.join(work, 'minimal');
 const failures = [];
 
 const check = (condition, message) => {
@@ -38,6 +39,8 @@ const check = (condition, message) => {
     failures.push(message);
   }
 };
+
+const pinned = (name) => `${name}@${manifest.devDependencies[name]}`;
 
 function run(command, args, options) {
   return spawnSync(command, args, { encoding: 'utf8', ...options });
@@ -59,73 +62,76 @@ function mustRun(command, args, options) {
   return result;
 }
 
-function installConsumer() {
+function pack() {
   mustRun('pnpm', ['pack', '--pack-destination', work], { cwd: root });
-  const tarball = path.join(
+
+  return path.join(
     work,
     readdirSync(work).find((name) => name.endsWith('.tgz'))
   );
+}
 
-  mkdirSync(consumer);
+function installConsumer(dir, packages) {
+  mkdirSync(dir);
   writeFileSync(
-    path.join(consumer, 'package.json'),
-    JSON.stringify({ name: 'consumer', private: true, type: 'module' })
+    path.join(dir, 'package.json'),
+    JSON.stringify({ name: path.basename(dir), private: true, type: 'module' })
   );
   // Without hoisting the consumer cannot see the package's own dependencies, as in a real strict install
-  writeFileSync(path.join(consumer, '.npmrc'), 'hoist=false\nsave-exact=true\n');
-  mustRun(
-    'pnpm',
-    [
-      'add',
-      '-D',
-      `oxlint@${manifest.devDependencies.oxlint}`,
-      `oxfmt@${manifest.devDependencies.oxfmt}`,
-      tarball,
-    ],
-    { cwd: consumer }
-  );
+  writeFileSync(path.join(dir, '.npmrc'), 'hoist=false\nsave-exact=true\n');
+  mustRun('pnpm', ['add', '-D', ...packages], { cwd: dir });
+  cpSync(path.join(root, 'test/fixtures'), dir, { recursive: true });
+}
 
-  cpSync(path.join(root, 'test/fixtures'), consumer, { recursive: true });
-  writeFileSync(
-    path.join(consumer, 'oxlint.config.ts'),
-    `import { createConfig } from '${manifest.name}/oxlint';
+function writeLintConfig(dir, { testingLibrary }) {
+  const config = testingLibrary
+    ? `import { createConfig } from '${manifest.name}/oxlint';
 import testingLibrary from '${manifest.name}/oxlint/testing-library';
 
 export default createConfig(testingLibrary);
 `
-  );
-  writeFileSync(
-    path.join(consumer, 'oxfmt.config.ts'),
-    `import { createConfig } from '${manifest.name}/oxfmt';
+    : `import { createConfig } from '${manifest.name}/oxlint';
 
 export default createConfig();
-`
-  );
+`;
+
+  writeFileSync(path.join(dir, 'oxlint.config.ts'), config);
 }
 
-function checkLint() {
-  const result = run(path.join(consumer, 'node_modules/.bin/oxlint'), ['--format', 'json', '.'], {
-    cwd: consumer,
+function lint(dir) {
+  const result = run(path.join(dir, 'node_modules/.bin/oxlint'), ['--format', 'json', '.'], {
+    cwd: dir,
   });
-  let report;
 
   if (result.error) {
     failures.push(
-      `oxlint could not run to completion (${result.error.code ?? result.error.message}); is node_modules being linted?`
+      `oxlint could not run to completion in ${path.basename(dir)} (${result.error.code ?? result.error.message}); is node_modules being linted?`
     );
-    return;
+    return null;
   }
 
   try {
-    report = JSON.parse(result.stdout);
+    return { result, report: JSON.parse(result.stdout) };
   } catch {
-    failures.push(`oxlint did not produce a report:\n${result.stdout}${result.stderr}`);
+    failures.push(
+      `oxlint did not produce a report in ${path.basename(dir)}:\n${result.stdout}${result.stderr}`
+    );
+    return null;
+  }
+}
+
+function checkLint() {
+  writeLintConfig(consumer, { testingLibrary: true });
+  const linted = lint(consumer);
+
+  if (!linted) {
     return;
   }
 
+  const { result, report } = linted;
   const codes = new Set(report.diagnostics.map((diagnostic) => diagnostic.code));
 
-  for (const code of EXPECTED_CODES) {
+  for (const code of [...BASE_CODES, ...TESTING_LIBRARY_CODES]) {
     check(codes.has(code), `expected ${code} to be reported`);
   }
 
@@ -139,7 +145,46 @@ function checkLint() {
   check(result.stderr.trim() === '', `oxlint wrote to stderr:\n${result.stderr}`);
 }
 
+function checkWithoutTestingLibrary() {
+  const installed = readdirSync(path.join(minimal, 'node_modules/.pnpm'));
+
+  check(
+    !installed.some(
+      (name) => name.startsWith('eslint@') || name.startsWith('eslint-plugin-testing-library@')
+    ),
+    'a consumer without eslint-plugin-testing-library still installs ESLint'
+  );
+
+  writeLintConfig(minimal, { testingLibrary: false });
+  const linted = lint(minimal);
+
+  if (linted) {
+    const codes = new Set(linted.report.diagnostics.map((diagnostic) => diagnostic.code));
+
+    for (const code of BASE_CODES) {
+      check(codes.has(code), `expected ${code} to be reported without the testing-library plugin`);
+    }
+  }
+
+  writeLintConfig(minimal, { testingLibrary: true });
+  const result = run(path.join(minimal, 'node_modules/.bin/oxlint'), ['.'], { cwd: minimal });
+
+  check(
+    result.status !== 0 &&
+      `${result.stdout}${result.stderr}`.includes('pnpm add -D -E eslint-plugin-testing-library'),
+    `the testing-library fragment does not explain the missing plugin:\n${result.stdout}${result.stderr}`
+  );
+}
+
 function checkFormat() {
+  writeFileSync(
+    path.join(consumer, 'oxfmt.config.ts'),
+    `import { createConfig } from '${manifest.name}/oxfmt';
+
+export default createConfig();
+`
+  );
+
   const oxfmt = path.join(consumer, 'node_modules/.bin/oxfmt');
   const messy = path.join(consumer, 'format/messy.ts');
   const expected = readFileSync(path.join(root, 'test/fixtures/format/expected.ts'), 'utf8');
@@ -179,8 +224,17 @@ function checkMerge() {
 }
 
 try {
-  installConsumer();
+  const tarball = pack();
+
+  installConsumer(consumer, [
+    pinned('oxlint'),
+    pinned('oxfmt'),
+    pinned('eslint-plugin-testing-library'),
+    tarball,
+  ]);
+  installConsumer(minimal, [pinned('oxlint'), tarball]);
   checkLint();
+  checkWithoutTestingLibrary();
   checkFormat();
   checkMerge();
 } catch (error) {

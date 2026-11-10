@@ -2,10 +2,23 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
+function resolvePlugin() {
+  try {
+    return require.resolve('eslint-plugin-testing-library');
+  } catch (error) {
+    if (error.code !== 'MODULE_NOT_FOUND') {
+      throw error;
+    }
+
+    throw new Error(
+      '@wonderboymusic/oxc-config/oxlint/testing-library needs eslint-plugin-testing-library: pnpm add -D -E eslint-plugin-testing-library',
+      { cause: error }
+    );
+  }
+}
+
 export default {
-  jsPlugins: [
-    { name: 'testing-library', specifier: require.resolve('eslint-plugin-testing-library') },
-  ],
+  jsPlugins: [{ name: 'testing-library', specifier: resolvePlugin() }],
   overrides: [
     {
       files: ['**/*.test.*'],

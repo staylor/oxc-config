@@ -21,7 +21,11 @@ export default createConfig({
 });
 ```
 
-Add the Testing Library rules, which run through the `eslint-plugin-testing-library` JS plugin, by passing the fragment too:
+Add the Testing Library rules, which run through the `eslint-plugin-testing-library` JS plugin, by installing that plugin and passing the fragment too:
+
+```sh
+pnpm add -D -E eslint-plugin-testing-library
+```
 
 ```ts
 import { createConfig } from '@wonderboymusic/oxc-config/oxlint';
