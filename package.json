@@ -1,6 +1,6 @@
 {
   "name": "@wonderboymusic/oxc-config",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shared oxlint and oxfmt configuration",
   "author": "Scott Taylor <scott.c.taylor@mac.com>",
   "license": "MIT",
