@@ -1,0 +1,63 @@
+{
+  "name": "@wonderboymusic/oxc-config",
+  "version": "1.0.0",
+  "description": "Shared oxlint and oxfmt configuration",
+  "author": "Scott Taylor <scott.c.taylor@mac.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/staylor/oxc-config.git"
+  },
+  "type": "module",
+  "exports": {
+    "./oxlint": {
+      "types": "./oxlint/index.d.ts",
+      "default": "./oxlint/index.js"
+    },
+    "./oxlint/testing-library": {
+      "types": "./oxlint/testing-library.d.ts",
+      "default": "./oxlint/testing-library.js"
+    },
+    "./oxfmt": {
+      "types": "./oxfmt/index.d.ts",
+      "default": "./oxfmt/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "oxlint",
+    "oxfmt"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "lint": "oxlint --deny-warnings && oxfmt --check",
+    "lint:fix": "oxlint --fix && oxfmt",
+    "test": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "eslint-plugin-testing-library": "7.16.2"
+  },
+  "peerDependencies": {
+    "oxfmt": ">=0.76.0 <1",
+    "oxlint": ">=1.93.0 <2"
+  },
+  "peerDependenciesMeta": {
+    "oxfmt": {
+      "optional": true
+    },
+    "oxlint": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "oxfmt": "0.76.0",
+    "oxlint": "1.93.0"
+  }
+}
